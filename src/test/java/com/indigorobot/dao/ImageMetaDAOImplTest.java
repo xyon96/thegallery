@@ -1,8 +1,10 @@
 package com.indigorobot.dao;
 
+import com.indigorobot.AppConfig;
 import com.indigorobot.model.ImageMeta;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
@@ -18,6 +20,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.client.AutoConfigureWebClient;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 @RunWith(MockitoJUnitRunner.class)
 public class ImageMetaDAOImplTest {
 
@@ -27,12 +33,12 @@ public class ImageMetaDAOImplTest {
     private String imageMetaGallery = "imageMetaGallery";
     private ImageMeta imageMeta;
 
-    @Value("${mysql.imagemeta.table}")
-    private String imageMetaTable;
+    //@Value("${mysql.imagemeta.table}")
+    private String imageMetaTable = AppConfig.imageMetaTable;
 
     private String insertSql = "INSERT INTO " + imageMetaTable +
             " (name, gallery, description)" +
-            " VALUES ('...',?,?,?)";
+            " VALUES (?,?,?)";
     private String getByNameSql = "SELECT" +
             " (name, gallery, description)" +
             " FROM " + imageMetaTable +
@@ -48,8 +54,11 @@ public class ImageMetaDAOImplTest {
     private String updateSql = "UPDATE " + imageMetaTable +
             " SET name=?, gallery=?, description=?" +
             " WHERE id=?";
-    private String deleteSql = "DELETE from " + imageMetaTable +
+    private String deleteByIdSql = "DELETE from " + imageMetaTable +
             " WHERE id=?";
+    private String deleteByNameSql = "DELETE from " + imageMetaTable +
+            " WHERE name=?";
+    private String listSql = "SELECT * FROM " + imageMetaTable;
 
     @Mock
     private JdbcTemplate jdbcTemplate;
@@ -186,7 +195,7 @@ public class ImageMetaDAOImplTest {
 
         // Run the method to be tested and
         // get its result
-        boolean result = imageMetaDAO.update(imageMeta);
+        boolean result = imageMetaDAO.update(imageMetaId, imageMeta);
 
         // Ensure we got a successful result
         // from the DAO (since the template
@@ -209,13 +218,13 @@ public class ImageMetaDAOImplTest {
     }
 
     @Test
-    public void testDelete() {
+    public void testDeleteById() {
 
         // When our mock is called, return
         // what is expected (a single row
         // counted, 1)
         when(jdbcTemplate.update(
-                deleteSql,
+                deleteByIdSql,
                 imageMetaId
         )).thenReturn(1);
 
@@ -232,11 +241,56 @@ public class ImageMetaDAOImplTest {
         // Ensure the jdbcTemplate was called
         // by the DAO with expected arguments
         verify(jdbcTemplate, times(1)).update(
-                deleteSql,
+                deleteByIdSql,
                 imageMetaId);
 
         // Ensure the jdbcTemplate was not
         // further interacted with
+        verifyNoMoreInteractions(jdbcTemplate);
+    }
+
+    @Test
+    public void testDeleteByName() {
+
+        // When our mock is called, return
+        // what is expected (a single row
+        // counted, 1)
+        when(jdbcTemplate.update(
+                deleteByNameSql,
+                imageMetaName
+        )).thenReturn(1);
+
+        // Run the method to be tested and
+        // get its result
+        boolean result = imageMetaDAO.delete(imageMetaName);
+
+        // Ensure we got a successful result
+        // from the DAO (since the template
+        // told the DAO that a row was
+        // deleted, see the "when" above)
+        assertTrue(result);
+
+        // Ensure the jdbcTemplate was called
+        // by the DAO with expected arguments
+        verify(jdbcTemplate, times(1)).update(
+                deleteByNameSql,
+                imageMetaName);
+
+        // Ensure the jdbcTemplate was not
+        // further interacted with
+        verifyNoMoreInteractions(jdbcTemplate);
+    }
+
+    // Need to include the rowmapper appropriately before enabling
+    @Ignore
+    @Test
+    public void testList() {
+        ImageMetaRowMapper imageMetaRowMapper = new ImageMetaRowMapper();
+        when(jdbcTemplate.query(listSql, any(ImageMetaRowMapper.class)))
+        .thenReturn(new ArrayList<>(Arrays.asList(imageMeta, imageMeta)));
+        List<ImageMeta> result = imageMetaDAO.list();
+        assertNotNull(result);
+        verify(jdbcTemplate, times(1)).query(listSql, imageMetaRowMapper);
         verifyNoMoreInteractions(jdbcTemplate);
     }
 }
